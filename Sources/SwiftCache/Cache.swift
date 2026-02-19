@@ -121,6 +121,8 @@ public actor Cache<Key: Hashable & Sendable, Value: Sendable> {
     }
 
     private func evictIfNeeded() {
+        // Purge expired entries first — they cost capacity but may already be stale
+        purgeExpired()
         while storage.count > capacity, let lruKey = accessOrder.first {
             removeEntry(for: lruKey)
         }
