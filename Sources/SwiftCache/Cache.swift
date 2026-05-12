@@ -103,6 +103,26 @@ public actor Cache<Key: Hashable & Sendable, Value: Sendable> {
         accessOrder.removeAll()
     }
 
+    // MARK: - Snapshot
+
+    /// Capture all current entries as an immutable snapshot.
+    public func snapshot() -> CacheSnapshot<Key, Value> {
+        let entries = storage.map { key, entry in
+            CacheSnapshot<Key, Value>.Entry(key: key, value: entry.value, expiresAt: entry.expiresAt)
+        }
+        return CacheSnapshot(entries: entries, capturedAt: Date())
+    }
+
+    /// Bulk-load entries from a snapshot, skipping expired ones by default.
+    public func load(from snapshot: CacheSnapshot<Key, Value>, skipExpired: Bool = true) {
+        let toLoad = skipExpired ? snapshot.validEntries() : snapshot.entries
+        for entry in toLoad {
+            let ttl: TimeInterval? = entry.expiresAt.map { $0.timeIntervalSinceNow }
+            guard ttl == nil || (ttl ?? 1) > 0 else { continue }
+            set(entry.key, value: entry.value, ttl: ttl)
+        }
+    }
+
     // MARK: - Metadata
 
     /// Number of non-expired entries currently in the cache.
